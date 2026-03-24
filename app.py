@@ -202,25 +202,30 @@ def load_model(model_path: str):
 #  PRÉTRAITEMENT AUDIO
 # ─────────────────────────────────────────────
 
-def preprocess_audio(audio_bytes: bytes) -> np.ndarray:
-    """
-    Charge les bytes audio, convertit en mono 16 kHz via Librosa.
-    Retourne un tableau float32 normalisé.
-    """
-    with tempfile.NamedTemporaryFile(delete=False) as tmp: # Retire le suffix=".wav"        tmp.write(audio_bytes)
+def preprocess_audio(audio_bytes: bytes):
+    # 1. On crée et on FERME le fichier après l'écriture
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+        tmp.write(audio_bytes)
         tmp_path = tmp.name
-
+    
     try:
+        # 2. On le lit avec librosa (sr=16000 est crucial pour Whisper)
         waveform, sr = librosa.load(tmp_path, sr=16000, mono=True)
+        
+        # 3. Normalisation du volume (pour une meilleure transcription)
+        if len(waveform) > 0:
+            peak = np.max(np.abs(waveform))
+            if peak > 0:
+                waveform = waveform / peak
+        return waveform
+        
+    except Exception as e:
+        st.error(f"Erreur lors du traitement : {e}")
+        return None
     finally:
-        os.unlink(tmp_path)
-
-    # Normalisation peak
-    peak = np.max(np.abs(waveform))
-    if peak > 0:
-        waveform = waveform / peak
-
-    return waveform.astype(np.float32)
+        # 4. On supprime le fichier temporaire pour ne pas saturer le serveur
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
 
 def chunk_audio(waveform: np.ndarray, chunk_sec: int = CHUNK_SECONDS) -> list[np.ndarray]:
@@ -396,7 +401,26 @@ with tab_mic:
     if recorded and recorded.get("bytes"):
         audio_bytes = recorded["bytes"]
         st.success("✅ Enregistrement capturé avec succès !")
+# --- DÉBUT DU BLOC DE TRANSCRIPTION ---
+        audio_waveform = preprocess_audio(audio_bytes)
 
+        if audio_waveform is not None:
+            with st.spinner("🤖 Transcription en cours (V1 vs V2)..."):
+                # Inférence sur les deux modèles
+                result_v1 = model_v1.transcribe(audio_waveform)
+                result_v2 = model_v2.transcribe(audio_waveform)
+                
+                # Affichage des résultats en colonnes
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.info("### Modèle V1")
+                    st.write(result_v1["text"])
+                with c2:
+                    st.success("### Modèle V2")
+                    st.write(result_v2["text"])
+        else:
+            st.error("Désolé, impossible de traiter cet audio.")
+        # --- FIN DU BLOC ---
 # ─────────────────────────────────────────────
 #  LECTEUR AUDIO
 # ─────────────────────────────────────────────
