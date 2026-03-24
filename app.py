@@ -405,20 +405,18 @@ with tab_mic:
         audio_waveform = preprocess_audio(audio_bytes)
 
         if audio_waveform is not None:
-            with st.spinner("🤖 Transcription en cours (V1 vs V2)..."):
-                # Utilisation de TES modèles avec la méthode Hugging Face (.generate)
-                
+            with st.spinner("🤖 Transcription en cours..."):
                 # Traitement Modèle V1
-                input_v1 = processor_v1(audio_waveform, sampling_rate=16000, return_tensors="pt").input_features.to(device)
+                input_v1 = processor_v1(audio_waveform, sampling_rate=16000, return_tensors="pt").input_features
                 ids_v1 = model_v1.generate(input_v1)
                 text_v1 = processor_v1.batch_decode(ids_v1, skip_special_tokens=True)[0]
 
                 # Traitement Modèle V2
-                input_v2 = processor_v2(audio_waveform, sampling_rate=16000, return_tensors="pt").input_features.to(device)
+                input_v2 = processor_v2(audio_waveform, sampling_rate=16000, return_tensors="pt").input_features
                 ids_v2 = model_v2.generate(input_v2)
                 text_v2 = processor_v2.batch_decode(ids_v2, skip_special_tokens=True)[0]
                 
-                # Affichage des résultats
+                # Affichage
                 c1, c2 = st.columns(2)
                 with c1:
                     st.info("### Modèle V1 (Baseline)")
