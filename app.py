@@ -26,6 +26,24 @@ ffmpeg_path = r"C:\Users\Bilel\Downloads\ffmpeg-8.1-essentials_build\ffmpeg-8.1-
 AudioSegment.converter = ffmpeg_path
 os.environ["PATH"] += os.pathsep + os.path.dirname(ffmpeg_path)
 
+
+import gdown
+import os
+
+# IDs de tes dossiers Drive (à récupérer via le lien de partage)
+# Exemple : si ton lien est https://drive.google.com/drive/folders/1abc... l'ID est 1abc...
+ID_V1 = "12YdiqXixSf9fDSVUXu4viysFwXu2hh3O"
+ID_V2 = "1CNH-YHd1iwwABofGchZAiteRXVqIwLyU"
+
+def download_models():
+    if not os.path.exists("whisper-v1"):
+        gdown.download_folder(id=ID_V1, output="whisper-v1", quiet=False)
+    if not os.path.exists("whisper-v2"):
+        gdown.download_folder(id=ID_V2, output="whisper-v2", quiet=False)
+
+# Appelle la fonction avant de charger les modèles
+download_models()
+
 # ─────────────────────────────────────────────
 #  CONFIGURATION GLOBALE
 # ─────────────────────────────────────────────
