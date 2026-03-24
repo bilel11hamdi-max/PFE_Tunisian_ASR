@@ -1,0 +1,18 @@
+# Ignorer l'environnement virtuel (trop de petits fichiers)
+venv/
+.venv/
+env/
+
+# Ignorer les modèles Whisper (trop lourds pour GitHub)
+whisper-v1/
+whisper-v2/
+
+# Ignorer les outils système et caches
+ffmpeg/
+__pycache__/
+*.pyc
+.DS_Store
+
+# Ignorer les fichiers audio de test que tu as pu utiliser
+*.wav
+*.mp3
