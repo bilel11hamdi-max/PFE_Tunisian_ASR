@@ -399,6 +399,27 @@ with tab_mic:
 # ─────────────────────────────────────────────
 #  LECTEUR AUDIO
 # ─────────────────────────────────────────────
+import librosa
+import numpy as np
+
+def process_audio(audio_path):
+    try:
+        # 1. Charger l'audio et le convertir automatiquement en 16kHz (mono)
+        # librosa gère presque tous les formats (wav, mp3, webm, etc.)
+        speech, sr = librosa.load(audio_path, sr=16000)
+        
+        # 2. S'assurer que les données sont en float32 (requis par Whisper)
+        speech = speech.astype(np.float32)
+        
+        return speech
+    except Exception as e:
+        st.error(f"Erreur lors du traitement audio : {e}")
+        return None
+
+# Utilisation dans ton bouton de comparaison :
+# audio_to_model = process_audio(input_file)
+# if audio_to_model is not None:
+#     result = model.transcribe(audio_to_model)
 
 if audio_bytes:
     st.markdown('<p class="section-title">🔊 Écoute de l\'audio</p>', unsafe_allow_html=True)
