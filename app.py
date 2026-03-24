@@ -17,6 +17,8 @@ from transformers import WhisperProcessor, WhisperForConditionalGeneration
 from streamlit_mic_recorder import mic_recorder
 
 
+
+
 import os
 from pydub import AudioSegment
 
@@ -205,12 +207,11 @@ def preprocess_audio(audio_bytes: bytes) -> np.ndarray:
     Charge les bytes audio, convertit en mono 16 kHz via Librosa.
     Retourne un tableau float32 normalisé.
     """
-    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-        tmp.write(audio_bytes)
+    with tempfile.NamedTemporaryFile(delete=False) as tmp: # Retire le suffix=".wav"        tmp.write(audio_bytes)
         tmp_path = tmp.name
 
     try:
-        waveform, sr = librosa.load(tmp_path, sr=SAMPLE_RATE, mono=True)
+        waveform, sr = librosa.load(tmp_path, sr=16000, mono=True)
     finally:
         os.unlink(tmp_path)
 
