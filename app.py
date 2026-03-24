@@ -406,20 +406,28 @@ with tab_mic:
 
         if audio_waveform is not None:
             with st.spinner("🤖 Transcription en cours (V1 vs V2)..."):
-                # Inférence sur les deux modèles
-                result_v1 = model_v1.transcribe(audio_waveform)
-                result_v2 = model_v2.transcribe(audio_waveform)
+                # Utilisation de TES modèles avec la méthode Hugging Face (.generate)
                 
-                # Affichage des résultats en colonnes
+                # Traitement Modèle V1
+                input_v1 = processor_v1(audio_waveform, sampling_rate=16000, return_tensors="pt").input_features.to(device)
+                ids_v1 = model_v1.generate(input_v1)
+                text_v1 = processor_v1.batch_decode(ids_v1, skip_special_tokens=True)[0]
+
+                # Traitement Modèle V2
+                input_v2 = processor_v2(audio_waveform, sampling_rate=16000, return_tensors="pt").input_features.to(device)
+                ids_v2 = model_v2.generate(input_v2)
+                text_v2 = processor_v2.batch_decode(ids_v2, skip_special_tokens=True)[0]
+                
+                # Affichage des résultats
                 c1, c2 = st.columns(2)
                 with c1:
-                    st.info("### Modèle V1")
-                    st.write(result_v1["text"])
+                    st.info("### Modèle V1 (Baseline)")
+                    st.write(text_v1)
                 with c2:
-                    st.success("### Modèle V2")
-                    st.write(result_v2["text"])
+                    st.success("### Modèle V2 (Fine-tuné)")
+                    st.write(text_v2)
         else:
-            st.error("Désolé, impossible de traiter cet audio.")
+            st.error("Erreur : Impossible d'analyser l'audio. Vérifie FFmpeg.")
         # --- FIN DU BLOC ---
 # ─────────────────────────────────────────────
 #  LECTEUR AUDIO
