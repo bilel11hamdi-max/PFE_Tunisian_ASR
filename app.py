@@ -32,10 +32,11 @@ import os
 
 # IDs de tes dossiers Drive (à récupérer via le lien de partage)
 # Exemple : si ton lien est https://drive.google.com/drive/folders/1abc... l'ID est 1abc...
-ID_V1 = "12YdiqXixSf9fDSVUXu4viysFwXu2hh3O"
-ID_V2 = "1CNH-YHd1iwwABofGchZAiteRXVqIwLyU"
+ID_V1 = "12YdIqXixSf9fDSVUXu4viysFwXu2hh3O?dmr=1&ec=wgc-drive-%5Bmodule%5D-goto"
+ID_V2 = "1CNH-YHd1iWwABofGchZAiteRXVqIwLyU?dmr=1&ec=wgc-drive-%5Bmodule%5D-goto"
 
 def download_models():
+
     if not os.path.exists("whisper-v1"):
         gdown.download_folder(id=ID_V1, output="whisper-v1", quiet=False)
     if not os.path.exists("whisper-v2"):
@@ -47,8 +48,9 @@ download_models()
 # ─────────────────────────────────────────────
 #  CONFIGURATION GLOBALE
 # ─────────────────────────────────────────────
-MODEL_V1_PATH = "whisper-v1/whisper-small-tunisian-FINAL"
-MODEL_V2_PATH = "whisper-v2/whisper-small-tunisian-V2-ROBUST"
+# REMPLACE les liens "https://huggingface.co/..." par les noms des dossiers locaux
+MODEL_V1_PATH = "whisper-v1"
+MODEL_V2_PATH = "whisper-v2"
 
 SAMPLE_RATE   = 16_000   # Whisper attend 16 kHz
 CHUNK_SECONDS = 28       # Fenêtre < 30 s pour éviter les OOM
