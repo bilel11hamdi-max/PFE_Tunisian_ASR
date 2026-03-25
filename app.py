@@ -26,38 +26,35 @@ if os.path.exists(local_ffmpeg):
     os.environ["PATH"] += os.pathsep + os.path.dirname(local_ffmpeg)
 
 # ─────────────────────────────────────────────
-#  TÉLÉCHARGEMENT MODÈLES DEPUIS GOOGLE DRIVE
+#  TÉLÉCHARGEMENT DES MODÈLES DEPUIS DRIVE
 # ─────────────────────────────────────────────
-try:
-    import gdown
-    import os
-    import zipfile
+ID_V1 = "12YdIqXixSf9fDSVUXu4viysFwXu2hh3O"
+ID_V2 = "1CNH-YHd1iWwABofGchZAiteRXVqIwLyU"
 
-    def download_models():
-        # IDs de tes dossiers Google Drive
-        ids = {
-            "v1": "12YdIqXixSf9fDSVUXu4viysFwXu2hh3O",
-            "v2": "1CNH-YHd1iWwABofGchZAiteRXVqIwLyU"
-        }
-        
-        for version, file_id in ids.items():
-            folder_path = f"whisper-{version}"
-            # On vérifie si le sous-dossier final existe pour éviter de retélécharger
-            # (Adapté à ta structure réelle vue sur tes photos)
-            sub_folder = "whisper-small-tunisian-FINAL" if version == "v1" else "whisper-small-tunisian-V2-ROBUST"
-            final_path = os.path.join(folder_path, sub_folder)
-            
-            if not os.path.exists(final_path):
-                st.info(f"⏳ Téléchargement du Modèle {version.upper()} depuis Google Drive... Veuillez patienter.")
-                # Utilisation de download_folder car tes liens pointent vers des dossiers
-                gdown.download_folder(id=file_id, output=folder_path, quiet=False, remaining_ok=True)
+def download_models():
+    # Dossiers cibles (on simplifie pour éviter les sous-dossiers inutiles)
+    path_v1 = "whisper-v1"
+    path_v2 = "whisper-v2"
     
-    # Appel de la fonction
-    download_models()
+    # Vérification de la présence du fichier principal
+    if not os.path.exists(os.path.join(path_v1, "model.safetensors")):
+        with st.spinner("📥 Téléchargement du Modèle V1 Baseline..."):
+            gdown.download_folder(id=ID_V1, output=path_v1, quiet=False, remaining_ok=True)
+            
+    if not os.path.exists(os.path.join(path_v2, "model.safetensors")):
+        with st.spinner("📥 Téléchargement du Modèle V2 Robust..."):
+            gdown.download_folder(id=ID_V2, output=path_v2, quiet=False, remaining_ok=True)
 
-except ImportError:
-    st.error("La bibliothèque 'gdown' est manquante. Ajoutez-la au fichier requirements.txt")
-    pass
+# Exécution du téléchargement
+download_models()
+
+# ─────────────────────────────────────────────
+#  CONFIGURATION GLOBALE
+# ─────────────────────────────────────────────
+# Comme gdown télécharge le CONTENU du dossier Drive dans 'output', 
+# le chemin est directement le nom du dossier.
+MODEL_V1_PATH = "whisper-v1"
+MODEL_V2_PATH = "whisper-v2"
 
 # ─────────────────────────────────────────────
 #  CONFIGURATION GLOBALE
