@@ -30,19 +30,33 @@ if os.path.exists(local_ffmpeg):
 # ─────────────────────────────────────────────
 try:
     import gdown
-    ID_V1 = "12YdIqXixSf9fDSVUXu4viysFwXu2hh3O"
-    ID_V2 = "1CNH-YHd1iWwABofGchZAiteRXVqIwLyU"
+    import os
+    import zipfile
 
     def download_models():
-        if not os.path.exists("whisper-v1"):
-            st.info("📥 Téléchargement Modèle V1…")
-            gdown.download_folder(id=ID_V1, output="whisper-v1", quiet=False)
-        if not os.path.exists("whisper-v2"):
-            st.info("📥 Téléchargement Modèle V2…")
-            gdown.download_folder(id=ID_V2, output="whisper-v2", quiet=False)
-
+        # IDs de tes dossiers Google Drive
+        ids = {
+            "v1": "12YdIqXixSf9fDSVUXu4viysFwXu2hh3O",
+            "v2": "1CNH-YHd1iWwABofGchZAiteRXVqIwLyU"
+        }
+        
+        for version, file_id in ids.items():
+            folder_path = f"whisper-{version}"
+            # On vérifie si le sous-dossier final existe pour éviter de retélécharger
+            # (Adapté à ta structure réelle vue sur tes photos)
+            sub_folder = "whisper-small-tunisian-FINAL" if version == "v1" else "whisper-small-tunisian-V2-ROBUST"
+            final_path = os.path.join(folder_path, sub_folder)
+            
+            if not os.path.exists(final_path):
+                st.info(f"⏳ Téléchargement du Modèle {version.upper()} depuis Google Drive... Veuillez patienter.")
+                # Utilisation de download_folder car tes liens pointent vers des dossiers
+                gdown.download_folder(id=file_id, output=folder_path, quiet=False, remaining_ok=True)
+    
+    # Appel de la fonction
     download_models()
+
 except ImportError:
+    st.error("La bibliothèque 'gdown' est manquante. Ajoutez-la au fichier requirements.txt")
     pass
 
 # ─────────────────────────────────────────────
