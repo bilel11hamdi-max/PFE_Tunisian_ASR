@@ -374,32 +374,40 @@ st.markdown(
 #  CHARGEMENT DES MODÈLES (mis en cache)
 # ─────────────────────────────────────────────
 
+# 1. Tes chemins simplifiés
+MODEL_V1_PATH = "whisper-v1"
+MODEL_V2_PATH = "whisper-v2"
+
+# 2. Ta fonction de chargement avec la sécurité locale
+# --- FONCTION DE CHARGEMENT ---
 @st.cache_resource(show_spinner=False)
 def load_all_models():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
-    # Chargement V1 en forçant la lecture locale
+    # Chargement V1
     p1 = WhisperProcessor.from_pretrained(MODEL_V1_PATH, local_files_only=True)
     m1 = WhisperForConditionalGeneration.from_pretrained(MODEL_V1_PATH, local_files_only=True).to(device)
     m1.eval()
     
-    # Chargement V2 en forçant la lecture locale
+    # Chargement V2
     p2 = WhisperProcessor.from_pretrained(MODEL_V2_PATH, local_files_only=True)
     m2 = WhisperForConditionalGeneration.from_pretrained(MODEL_V2_PATH, local_files_only=True).to(device)
     m2.eval()
     
     return p1, m1, p2, m2, device
 
-# --- Initialisation et appel du chargement ---
+# --- APPEL DU CHARGEMENT (INDISPENSABLE) ---
+# Ces lignes définissent les variables que Pylance marque en jaune
 models_loaded = False
+device = "cpu"
+processor_v1, model_v1, processor_v2, model_v2 = None, None, None, None
+
 try:
-    with st.spinner("⏳ Chargement des modèles en mémoire (Lecture locale)..."):
+    with st.spinner("⏳ Chargement des modèles en mémoire..."):
         processor_v1, model_v1, processor_v2, model_v2, device = load_all_models()
         models_loaded = True
 except Exception as e:
     st.error(f"❌ Erreur lors du chargement des modèles : {e}")
-    st.info("💡 Vérifiez que le téléchargement depuis Drive s'est bien terminé juste au-dessus.")
-# ─────────────────────────────────────────────
 #  FONCTIONS AUDIO
 # ─────────────────────────────────────────────
 
