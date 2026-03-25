@@ -13,44 +13,43 @@ import streamlit as st
 import librosa
 import soundfile as sf
 import torch
+import gdown
 from transformers import WhisperProcessor, WhisperForConditionalGeneration
 from streamlit_mic_recorder import mic_recorder
-
-
-
-
-import os
 from pydub import AudioSegment
 
-ffmpeg_path = r"C:\Users\Bilel\Downloads\ffmpeg-8.1-essentials_build\ffmpeg-8.1-essentials_build\bin\ffmpeg.exe"
+# ─────────────────────────────────────────────
+#  CONFIGURATION FFMPEG (Hébergement Local vs Cloud)
+# ─────────────────────────────────────────────
+# Sur Windows en local, on force le chemin. Sur Streamlit Cloud, FFmpeg s'installe via packages.txt
+local_ffmpeg = r"C:\Users\Bilel\Downloads\ffmpeg-8.1-essentials_build\ffmpeg-8.1-essentials_build\bin\ffmpeg.exe"
 
-# On force Python à utiliser ce chemin pour FFmpeg
-AudioSegment.converter = ffmpeg_path
-os.environ["PATH"] += os.pathsep + os.path.dirname(ffmpeg_path)
+if os.path.exists(local_ffmpeg):
+    AudioSegment.converter = local_ffmpeg
+    os.environ["PATH"] += os.pathsep + os.path.dirname(local_ffmpeg)
 
 
-import gdown
-import os
-
-# IDs de tes dossiers Drive (à récupérer via le lien de partage)
-# Exemple : si ton lien est https://drive.google.com/drive/folders/1abc... l'ID est 1abc...
-ID_V1 = "12YdIqXixSf9fDSVUXu4viysFwXu2hh3O?dmr=1&ec=wgc-drive-%5Bmodule%5D-goto"
-ID_V2 = "1CNH-YHd1iWwABofGchZAiteRXVqIwLyU?dmr=1&ec=wgc-drive-%5Bmodule%5D-goto"
+# ─────────────────────────────────────────────
+#  TÉLÉCHARGEMENT DES MODÈLES DEPUIS DRIVE
+# ─────────────────────────────────────────────
+# On ne garde que l'ID propre pour gdown
+ID_V1 = "12YdIqXixSf9fDSVUXu4viysFwXu2hh3O"
+ID_V2 = "1CNH-YHd1iWwABofGchZAiteRXVqIwLyU"
 
 def download_models():
-
     if not os.path.exists("whisper-v1"):
+        st.info("Téléchargement du Modèle V1 Baseline (première fois)...")
         gdown.download_folder(id=ID_V1, output="whisper-v1", quiet=False)
     if not os.path.exists("whisper-v2"):
+        st.info("Téléchargement du Modèle V2 Fine-tuné (première fois)...")
         gdown.download_folder(id=ID_V2, output="whisper-v2", quiet=False)
 
-# Appelle la fonction avant de charger les modèles
 download_models()
+
 
 # ─────────────────────────────────────────────
 #  CONFIGURATION GLOBALE
 # ─────────────────────────────────────────────
-# REMPLACE les liens "https://huggingface.co/..." par les noms des dossiers locaux
 MODEL_V1_PATH = "whisper-v1"
 MODEL_V2_PATH = "whisper-v2"
 
@@ -65,6 +64,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
 
 # ─────────────────────────────────────────────
 #  CSS PERSONNALISÉ
@@ -85,10 +85,8 @@ st.markdown(
         --radius:    12px;
     }
 
-    /* ── Fond global ── */
     .stApp { background-color: var(--bg); }
 
-    /* ── Hero banner ── */
     .hero {
         background: linear-gradient(135deg, var(--secondary) 0%, #457B9D 100%);
         border-radius: var(--radius);
@@ -100,7 +98,6 @@ st.markdown(
     .hero h1 { font-size: 2.2rem; margin: 0 0 .4rem; font-weight: 800; }
     .hero p  { font-size: 1.05rem; margin: 0; opacity: .88; }
 
-    /* ── Carte résultat ── */
     .result-card {
         background: var(--card);
         border-radius: var(--radius);
@@ -123,7 +120,6 @@ st.markdown(
         margin-top: .5rem;
     }
 
-    /* ── Badge métrique ── */
     .metric-badge {
         display: inline-flex;
         align-items: center;
@@ -136,10 +132,7 @@ st.markdown(
         font-weight: 600;
         margin-top: .7rem;
     }
-    .badge-fast  { background: var(--success); }
-    .badge-slow  { background: var(--accent); color: #333; }
 
-    /* ── Chip technologie (sidebar) ── */
     .tech-chip {
         display: inline-block;
         background: #EDF2FF;
@@ -152,7 +145,6 @@ st.markdown(
         border: 1px solid #C5D3F6;
     }
 
-    /* ── Séparateur section ── */
     .section-title {
         font-size: 1.1rem;
         font-weight: 700;
@@ -162,7 +154,6 @@ st.markdown(
         margin: 1.5rem 0 .8rem;
     }
 
-    /* ── Bouton principal ── */
     div[data-testid="stButton"] > button {
         background: linear-gradient(135deg, var(--primary), #C1121F);
         color: #fff !important;
@@ -174,28 +165,39 @@ st.markdown(
         transition: opacity .2s, transform .1s;
         box-shadow: 0 3px 10px rgba(230,57,70,.35);
     }
-    div[data-testid="stButton"] > button:hover { opacity: .9; transform: translateY(-1px); }
-
-    /* ── Masquer le filigrane Streamlit ── */
+    
     #MainMenu, footer { visibility: hidden; }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
+
 # ─────────────────────────────────────────────
-#  CHARGEMENT DES MODÈLES (mis en cache)
+#  CHARGEMENT DES MODÈLES (optimisé et mis en cache)
 # ─────────────────────────────────────────────
 
+MODEL_V1_PATH = "whisper-v1"
+MODEL_V2_PATH = "whisper-v2"
+
 @st.cache_resource(show_spinner=False)
-def load_model(model_path: str):
-    """Charge le processeur et le modèle Whisper fine-tuné."""
-    processor = WhisperProcessor.from_pretrained(model_path)
-    model     = WhisperForConditionalGeneration.from_pretrained(model_path)
-    device    = "cuda" if torch.cuda.is_available() else "cpu"
-    model     = model.to(device)
-    model.eval()
-    return processor, model, device
+def load_all_models():
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    
+    p1 = WhisperProcessor.from_pretrained(MODEL_V1_PATH)
+    m1 = WhisperForConditionalGeneration.from_pretrained(MODEL_V1_PATH).to(device)
+    m1.eval()
+    
+    p2 = WhisperProcessor.from_pretrained(MODEL_V2_PATH)
+    m2 = WhisperForConditionalGeneration.from_pretrained(MODEL_V2_PATH).to(device)
+    m2.eval()
+    
+    return p1, m1, p2, m2, device
+
+# Appel du chargement unique
+with st.spinner("⏳ Chargement initial des modèles en mémoire (S'il vous plaît patientez)..."):
+    processor_v1, model_v1, processor_v2, model_v2, device = load_all_models()
+    models_loaded = True
 
 
 # ─────────────────────────────────────────────
@@ -203,52 +205,39 @@ def load_model(model_path: str):
 # ─────────────────────────────────────────────
 
 def preprocess_audio(audio_bytes: bytes):
-    # 1. On crée et on FERME le fichier après l'écriture
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
         tmp.write(audio_bytes)
         tmp_path = tmp.name
     
     try:
-        # 2. On le lit avec librosa (sr=16000 est crucial pour Whisper)
         waveform, sr = librosa.load(tmp_path, sr=16000, mono=True)
-        
-        # 3. Normalisation du volume (pour une meilleure transcription)
         if len(waveform) > 0:
             peak = np.max(np.abs(waveform))
             if peak > 0:
                 waveform = waveform / peak
         return waveform
-        
     except Exception as e:
         st.error(f"Erreur lors du traitement : {e}")
         return None
     finally:
-        # 4. On supprime le fichier temporaire pour ne pas saturer le serveur
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
 
 
 def chunk_audio(waveform: np.ndarray, chunk_sec: int = CHUNK_SECONDS) -> list[np.ndarray]:
-    """Découpe l'audio en segments de `chunk_sec` secondes."""
     chunk_len = chunk_sec * SAMPLE_RATE
     return [waveform[i : i + chunk_len] for i in range(0, len(waveform), chunk_len)]
 
 
 # ─────────────────────────────────────────────
-#  INFÉRENCE
+#  FONCTION D'INFÉRENCE
 # ─────────────────────────────────────────────
 
 def transcribe(waveform: np.ndarray, processor, model, device: str) -> tuple[str, float]:
-    """
-    Transcrit un tableau audio (float32, 16 kHz).
-    Gère automatiquement le découpage si > 30 s.
-    Retourne (texte, temps_inférence_secondes).
-    """
     chunks = chunk_audio(waveform)
     texts  = []
 
     forced_ids = processor.get_decoder_prompt_ids(language=LANGUAGE, task=TASK)
-
     t0 = time.perf_counter()
 
     for chunk in chunks:
@@ -272,7 +261,7 @@ def transcribe(waveform: np.ndarray, processor, model, device: str) -> tuple[str
 
 
 # ─────────────────────────────────────────────
-#  SIDEBAR
+#  SIDEBAR (Menu latéral)
 # ─────────────────────────────────────────────
 
 with st.sidebar:
@@ -337,7 +326,7 @@ with st.sidebar:
 
 
 # ─────────────────────────────────────────────
-#  HERO
+#  HERO BANNER
 # ─────────────────────────────────────────────
 
 st.markdown(
@@ -350,22 +339,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ─────────────────────────────────────────────
-#  CHARGEMENT DES MODÈLES (avec spinner)
-# ─────────────────────────────────────────────
-
-with st.spinner("⏳ Chargement des modèles… (première fois uniquement)"):
-    try:
-        processor_v1, model_v1, device_v1 = load_model(MODEL_V1_PATH)
-        processor_v2, model_v2, device_v2 = load_model(MODEL_V2_PATH)
-        models_loaded = True
-    except Exception as e:
-        st.error(
-            f"❌ Impossible de charger les modèles : `{e}`\n\n"
-            f"Vérifiez que les chemins `MODEL_V1_PATH` et `MODEL_V2_PATH` "
-            f"sont corrects en haut du fichier `app.py`."
-        )
-        models_loaded = False
 
 # ─────────────────────────────────────────────
 #  ENTRÉE AUDIO
@@ -401,70 +374,56 @@ with tab_mic:
     if recorded and recorded.get("bytes"):
         audio_bytes = recorded["bytes"]
         st.success("✅ Enregistrement capturé avec succès !")
-# --- DÉBUT DU BLOC DE TRANSCRIPTION ---
+        
         audio_waveform = preprocess_audio(audio_bytes)
 
         if audio_waveform is not None:
-            with st.spinner("🤖 Transcription en cours..."):
-                # Traitement Modèle V1
-                input_v1 = processor_v1(audio_waveform, sampling_rate=16000, return_tensors="pt").input_features
-                ids_v1 = model_v1.generate(input_v1)
-                text_v1 = processor_v1.batch_decode(ids_v1, skip_special_tokens=True)[0]
+            with st.spinner("🤖 Transcription directe en cours..."):
+                # Prétraitement et forçage de langue pour le micro direct
+                forced_ids = processor_v1.get_decoder_prompt_ids(language=LANGUAGE, task=TASK)
 
-                # Traitement Modèle V2
-                input_v2 = processor_v2(audio_waveform, sampling_rate=16000, return_tensors="pt").input_features
-                ids_v2 = model_v2.generate(input_v2)
-                text_v2 = processor_v2.batch_decode(ids_v2, skip_special_tokens=True)[0]
+                # V1
+                input_v1 = processor_v1(audio_waveform, sampling_rate=SAMPLE_RATE, return_tensors="pt").input_features.to(device)
+                with torch.no_grad():
+                    ids_v1 = model_v1.generate(input_v1, forced_decoder_ids=forced_ids)
+                text_v1_mic = processor_v1.batch_decode(ids_v1, skip_special_tokens=True)[0]
+
+                # V2
+                input_v2 = processor_v2(audio_waveform, sampling_rate=SAMPLE_RATE, return_tensors="pt").input_features.to(device)
+                with torch.no_grad():
+                    ids_v2 = model_v2.generate(input_v2, forced_decoder_ids=forced_ids)
+                text_v2_mic = processor_v2.batch_decode(ids_v2, skip_special_tokens=True)[0]
                 
-                # Affichage
+                # Affichage direct sous l'enregistrement
                 c1, c2 = st.columns(2)
                 with c1:
-                    st.info("### Modèle V1 (Baseline)")
-                    st.write(text_v1)
+                    st.info("### V1 (Baseline)")
+                    st.write(text_v1_mic)
                 with c2:
-                    st.success("### Modèle V2 (Fine-tuné)")
-                    st.write(text_v2)
+                    st.success("### V2 (Fine-tuné)")
+                    st.write(text_v2_mic)
         else:
-            st.error("Erreur : Impossible d'analyser l'audio. Vérifie FFmpeg.")
-        # --- FIN DU BLOC ---
-# ─────────────────────────────────────────────
-#  LECTEUR AUDIO
-# ─────────────────────────────────────────────
-import librosa
-import numpy as np
+            st.error("Erreur : Impossible d'analyser l'audio. Vérifie tes fichiers.")
 
-def process_audio(audio_path):
-    try:
-        # 1. Charger l'audio et le convertir automatiquement en 16kHz (mono)
-        # librosa gère presque tous les formats (wav, mp3, webm, etc.)
-        speech, sr = librosa.load(audio_path, sr=16000)
-        
-        # 2. S'assurer que les données sont en float32 (requis par Whisper)
-        speech = speech.astype(np.float32)
-        
-        return speech
-    except Exception as e:
-        st.error(f"Erreur lors du traitement audio : {e}")
-        return None
 
-# Utilisation dans ton bouton de comparaison :
-# audio_to_model = process_audio(input_file)
-# if audio_to_model is not None:
-#     result = model.transcribe(audio_to_model)
+# ─────────────────────────────────────────────
+#  LECTEUR AUDIO GLOBAL
+# ─────────────────────────────────────────────
 
 if audio_bytes:
     st.markdown('<p class="section-title">🔊 Écoute de l\'audio</p>', unsafe_allow_html=True)
     st.audio(audio_bytes, format="audio/wav")
 
+
 # ─────────────────────────────────────────────
-#  BOUTON DE TRANSCRIPTION COMPARATIVE
+#  BOUTON DE TRANSCRIPTION ET ANALYSE COMPARATIVE
 # ─────────────────────────────────────────────
 
-st.markdown('<p class="section-title">🚀 Transcription Comparative</p>', unsafe_allow_html=True)
+st.markdown('<p class="section-title">🚀 Analyse Comparative Globale</p>', unsafe_allow_html=True)
 
 run_disabled = not (audio_bytes and models_loaded)
 
-if st.button("⚡ Lancer la comparaison V1 vs V2", disabled=run_disabled, use_container_width=True):
+if st.button("⚡ Lancer l'Analyse Comparative V1 vs V2", disabled=run_disabled, use_container_width=True):
 
     with st.spinner("🔄 Prétraitement audio…"):
         try:
@@ -477,7 +436,7 @@ if st.button("⚡ Lancer la comparaison V1 vs V2", disabled=run_disabled, use_co
     st.info(
         f"📏 Durée : **{duration:.1f} s** | "
         f"Échantillonnage : **16 kHz** | "
-        f"{'🔀 Chunking activé' if duration > CHUNK_SECONDS else '✅ Fichier court (pas de chunking)'}"
+        f"{'🔀 Chunking (découpage) activé' if duration > CHUNK_SECONDS else '✅ Fichier court (pas de découpage)'}"
     )
 
     col1, col2 = st.columns(2, gap="medium")
@@ -486,7 +445,7 @@ if st.button("⚡ Lancer la comparaison V1 vs V2", disabled=run_disabled, use_co
     with col1:
         with st.spinner("🤖 V1 — Baseline en cours…"):
             try:
-                text_v1, time_v1 = transcribe(waveform, processor_v1, model_v1, device_v1)
+                text_v1, time_v1 = transcribe(waveform, processor_v1, model_v1, device)
             except Exception as e:
                 text_v1, time_v1 = f"[Erreur : {e}]", 0.0
 
@@ -505,7 +464,7 @@ if st.button("⚡ Lancer la comparaison V1 vs V2", disabled=run_disabled, use_co
     with col2:
         with st.spinner("🤖 V2 — Robust en cours…"):
             try:
-                text_v2, time_v2 = transcribe(waveform, processor_v2, model_v2, device_v2)
+                text_v2, time_v2 = transcribe(waveform, processor_v2, model_v2, device)
             except Exception as e:
                 text_v2, time_v2 = f"[Erreur : {e}]", 0.0
 
@@ -521,7 +480,7 @@ if st.button("⚡ Lancer la comparaison V1 vs V2", disabled=run_disabled, use_co
         )
 
     # ── Analyse de vitesse ──
-    st.markdown('<p class="section-title">📊 Analyse de Performance</p>', unsafe_allow_html=True)
+    st.markdown('<p class="section-title">📊 Métriques de Performance</p>', unsafe_allow_html=True)
 
     m1, m2, m3 = st.columns(3)
 
@@ -549,7 +508,7 @@ if st.button("⚡ Lancer la comparaison V1 vs V2", disabled=run_disabled, use_co
         unsafe_allow_html=True,
     )
 
-    # ── Copie des transcriptions ──
+    # ── Téléchargements ──
     st.markdown('<p class="section-title">📋 Exporter les résultats</p>', unsafe_allow_html=True)
     exp1, exp2 = st.columns(2)
     with exp1:
@@ -570,6 +529,4 @@ if st.button("⚡ Lancer la comparaison V1 vs V2", disabled=run_disabled, use_co
         )
 
 elif not audio_bytes:
-    st.info("👆 Uploadez un fichier audio ou enregistrez votre voix pour activer la transcription.")
-elif not models_loaded:
-    st.warning("⚠️ Les modèles ne sont pas chargés. Vérifiez les chemins et relancez l'application.")
+    st.info("👆 Uploadez un fichier audio ou enregistrez votre voix pour activer l'analyse.")
