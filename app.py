@@ -8,6 +8,7 @@ import os
 import time
 import tempfile
 import datetime
+import gdown
 
 import numpy as np
 import streamlit as st
@@ -16,6 +17,7 @@ import torch
 from transformers import WhisperProcessor, WhisperForConditionalGeneration
 from streamlit_mic_recorder import mic_recorder
 from pydub import AudioSegment
+
 
 # ─────────────────────────────────────────────
 #  CONFIGURATION FFMPEG
